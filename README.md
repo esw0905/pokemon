@@ -1,1 +1,266 @@
 # pokemon
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MBTI로 포켓몬 찾기</title>
+<style>
+  :root {
+    --cream: #FFF6DC;
+    --paper: #FFFCF0;
+    --butter: #FFD54A;
+    --butter-deep: #F2B705;
+    --ink: #4A3A1E;
+    --ink-soft: #7A6638;
+    --line: #EBD9A0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Nanum Gothic", sans-serif;
+    font-size: 20px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 18px 56px; }
+  h1 { font-size: 34px; line-height: 1.3; margin: 0 0 10px; text-align: center; }
+  .lead { text-align: center; font-size: 21px; color: var(--ink-soft); margin: 0 0 28px; }
+  [hidden] { display: none !important; }
+
+  /* 유형 선택 버튼 */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .type-btn {
+    font: inherit; color: var(--ink);
+    background: var(--paper);
+    border: 3px solid var(--line);
+    border-radius: 18px;
+    min-height: 92px; padding: 10px 6px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: background .15s, border-color .15s, transform .1s;
+  }
+  .type-btn strong { font-size: 26px; letter-spacing: 1px; line-height: 1.2; }
+  .type-btn span { font-size: 16px; color: var(--ink-soft); }
+  .type-btn:hover { background: var(--butter); border-color: var(--butter-deep); }
+  .type-btn:active { transform: scale(.97); }
+  :focus-visible { outline: 4px solid var(--ink); outline-offset: 3px; }
+
+  /* 결과 */
+  .card {
+    background: var(--paper);
+    border: 3px solid var(--line);
+    border-radius: 28px;
+    padding: 30px 24px;
+    text-align: center;
+  }
+  .mytype { font-size: 20px; color: var(--ink-soft); margin: 0; }
+  .emoji-wrap {
+    width: 190px; height: 190px; margin: 18px auto 14px;
+    background: var(--butter);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 110px; line-height: 1;
+    animation: pop .5s cubic-bezier(.3,1.6,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .poke-name { font-size: 40px; margin: 0 0 14px; line-height: 1.2; }
+  .why { text-align: left; max-width: 560px; margin: 0 auto; padding: 0; list-style: none; }
+  .why li { background: var(--cream); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; }
+
+  .mate {
+    margin: 26px auto 0; max-width: 560px;
+    border-top: 3px dashed var(--line); padding-top: 22px;
+  }
+  .mate h3 { font-size: 22px; margin: 0 0 8px; }
+  .mate p { margin: 0 0 12px; color: var(--ink-soft); }
+  .mate-btn {
+    font: inherit; font-size: 22px; font-weight: 700; color: var(--ink);
+    background: var(--cream); border: 3px solid var(--butter-deep);
+    border-radius: 16px; padding: 10px 22px; cursor: pointer;
+  }
+  .mate-btn:hover { background: var(--butter); }
+
+  .reset {
+    display: block; margin: 28px auto 0;
+    font: inherit; font-size: 24px; font-weight: 700; color: var(--ink);
+    background: var(--butter); border: 3px solid var(--butter-deep);
+    border-radius: 999px; padding: 14px 40px; cursor: pointer;
+  }
+  .reset:hover { background: var(--butter-deep); }
+
+  @media (max-width: 560px) {
+    body { font-size: 18px; }
+    h1 { font-size: 28px; }
+    .lead { font-size: 18px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .poke-name { font-size: 34px; }
+    .emoji-wrap { width: 160px; height: 160px; font-size: 90px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .emoji-wrap { animation: none; }
+    .type-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>🔍 MBTI로 포켓몬 찾기</h1>
+
+  <section id="pick">
+    <p class="lead">내 MBTI를 눌러 보세요.<br>어울리는 포켓몬을 알려 드려요!</p>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="result" hidden>
+    <div class="card">
+      <p class="mytype" id="mytype"></p>
+      <div class="emoji-wrap" id="emoji" aria-hidden="true"></div>
+      <h2 class="poke-name" id="pname" tabindex="-1"></h2>
+      <ul class="why" id="why"></ul>
+      <div class="mate">
+        <h3>💛 잘 맞는 유형</h3>
+        <p id="matewhy"></p>
+        <button class="mate-btn" id="matebtn" type="button"></button>
+      </div>
+    </div>
+    <button class="reset" id="reset" type="button">다시 고르기</button>
+  </section>
+</main>
+
+<script>
+  // 유형 정보: 별명, 포켓몬, 이모지, 이유 3줄, 궁합 유형, 궁합 이유
+  var DATA = {
+    INTJ: { nick: "전략가", name: "뮤츠", emoji: "🔮",
+      why: ["늘 앞날을 미리 그려 보는 치밀한 계획가라서 똑똑하고 강한 뮤츠와 닮았어요.",
+            "겉으로는 차분하지만 속에는 큰 목표와 자신감이 있어요.",
+            "한번 정한 일은 끝까지 해내는 힘이 있어요."],
+      mate: "ENFP", mateWhy: "아이디어 넘치는 ENFP가 전략가의 계획에 생기를 더해 줘요." },
+    INTP: { nick: "논리술사", name: "알라카잠", emoji: "🥄",
+      why: ["궁금한 건 끝까지 파고드는 생각 많은 연구자라서 알라카잠과 닮았어요.",
+            "혼자 조용히 생각에 빠질 때 가장 빛나요.",
+            "엉뚱하지만 놀라운 해결책을 잘 떠올려요."],
+      mate: "ENTJ", mateWhy: "추진력 있는 ENTJ가 좋은 생각을 현실로 이끌어 줘요." },
+    ENTJ: { nick: "통솔자", name: "리자몽", emoji: "🔥",
+      why: ["앞장서서 사람들을 이끄는 모습이 불꽃을 뿜는 리자몽 같아요.",
+            "목표가 생기면 거침없이 밀고 나가는 리더예요.",
+            "당당하고 믿음직해서 주변에서 의지해요."],
+      mate: "INTP", mateWhy: "깊이 생각하는 INTP가 리더의 판단을 탄탄하게 받쳐 줘요." },
+    ENTP: { nick: "변론가", name: "팬텀", emoji: "👻",
+      why: ["재치 있고 장난기 많아서 사람들을 깜짝 놀라게 하는 팬텀과 닮았어요.",
+            "새로운 생각과 토론을 아주 좋아해요.",
+            "틀에 박힌 건 싫어하고 늘 색다른 걸 시도해요."],
+      mate: "INFJ", mateWhy: "깊이 있는 INFJ가 번뜩이는 생각에 방향을 잡아 줘요." },
+    INFJ: { nick: "옹호자", name: "루카리오", emoji: "🐺",
+      why: ["남의 마음을 잘 읽는 모습이 파동으로 감정을 느끼는 루카리오 같아요.",
+            "조용하지만 신념이 단단해서 소중한 사람을 끝까지 지켜요.",
+            "말보다 마음으로 먼저 다가가는 따뜻한 사람이에요."],
+      mate: "ENTP", mateWhy: "유쾌한 ENTP가 진지한 INFJ에게 웃음과 자극을 줘요." },
+    INFP: { nick: "중재자", name: "이브이", emoji: "🦊",
+      why: ["겉은 순하지만 속에는 무한한 가능성이 있는 이브이와 닮았어요.",
+            "자기만의 세계와 감성이 풍부해요.",
+            "마음이 맞는 친구 곁에서 가장 아름답게 변신해요."],
+      mate: "ENFJ", mateWhy: "다정한 ENFJ가 INFP의 마음을 편안하게 이해해 줘요." },
+    ENFJ: { nick: "선도자", name: "라프라스", emoji: "🐋",
+      why: ["친구들을 등에 태우고 건너 주는 상냥한 라프라스와 닮았어요.",
+            "다른 사람을 돕고 이끄는 데서 보람을 느껴요.",
+            "분위기를 따뜻하게 만드는 든든한 길잡이예요."],
+      mate: "INFP", mateWhy: "섬세한 INFP가 ENFJ의 따뜻함을 깊이 알아봐 줘요." },
+    ENFP: { nick: "활동가", name: "피카츄", emoji: "⚡",
+      why: ["어디서나 인기 만점인 밝은 에너지가 피카츄와 꼭 닮았어요.",
+            "새로운 사람과 새로운 일에 두근두근 설레어요.",
+            "곁에 있기만 해도 주변이 환해져요."],
+      mate: "INTJ", mateWhy: "차분한 INTJ가 ENFP의 큰 꿈을 든든하게 받쳐 줘요." },
+    ISTJ: { nick: "현실주의자", name: "거북왕", emoji: "🐢",
+      why: ["단단한 등껍질처럼 믿음직하고 책임감이 강해서 거북왕과 닮았어요.",
+            "맡은 일은 꼼꼼하게 끝까지 해내요.",
+            "약속과 규칙을 소중히 여기는 안정감 있는 사람이에요."],
+      mate: "ESFP", mateWhy: "밝은 ESFP가 성실한 ISTJ의 일상에 즐거움을 더해 줘요." },
+    ISFJ: { nick: "수호자", name: "이상해꽃", emoji: "🌸",
+      why: ["등의 꽃으로 모두를 포근하게 감싸는 이상해꽃과 닮았어요.",
+            "묵묵히 챙겨 주는 다정한 보호자예요.",
+            "눈에 띄지 않아도 꼭 필요한 곳에 있어 주는 사람이에요."],
+      mate: "ESTP", mateWhy: "활기찬 ESTP가 조심스러운 ISFJ의 손을 잡고 세상으로 이끌어 줘요." },
+    ESTJ: { nick: "경영자", name: "윈디", emoji: "🐕",
+      why: ["의리 있고 당당하게 무리를 지키는 윈디와 닮았어요.",
+            "계획을 세우고 질서 있게 일을 이끌어요.",
+            "믿고 맡길 수 있는 든든한 리더예요."],
+      mate: "ISFP", mateWhy: "부드러운 ISFP가 ESTJ의 단단한 마음을 말랑하게 풀어 줘요." },
+    ESFJ: { nick: "집정관", name: "해피너스", emoji: "💗",
+      why: ["아픈 친구를 정성껏 돌보는 해피너스처럼 마음씨가 따뜻해요.",
+            "다른 사람을 챙기고 모임을 즐겁게 만들어요.",
+            "고마움을 잘 표현해서 주변 사람들이 편안해해요."],
+      mate: "ISTP", mateWhy: "담백한 ISTP가 바쁜 ESFJ에게 여유를 알려 줘요." },
+    ISTP: { nick: "장인", name: "로토무", emoji: "🔌",
+      why: ["기계 속을 자유롭게 오가며 호기심 가득한 로토무와 닮았어요.",
+            "손으로 직접 만지고 고치며 배우는 걸 좋아해요.",
+            "말은 적지만 필요할 때 척척 해결해 줘요."],
+      mate: "ESFJ", mateWhy: "다정한 ESFJ가 ISTP의 마음을 따뜻하게 챙겨 줘요." },
+    ISFP: { nick: "모험가", name: "치코리타", emoji: "🍃",
+      why: ["잎사귀 향기로 사람을 편안하게 하는 치코리타와 닮았어요.",
+            "조용하고 부드럽지만 나만의 감성이 뚜렷해요.",
+            "자연과 예쁜 것, 자유로운 시간을 사랑해요."],
+      mate: "ESTJ", mateWhy: "듬직한 ESTJ가 ISFP가 마음껏 꿈꿀 수 있게 곁을 지켜 줘요." },
+    ESTP: { nick: "사업가", name: "날쌩마", emoji: "🐎",
+      why: ["생각보다 몸이 먼저 달려 나가는 날쌩마처럼 행동이 빨라요.",
+            "스릴 있는 도전과 새로운 경험을 좋아해요.",
+            "눈치가 빠르고 위기 상황에서도 침착하게 움직여요."],
+      mate: "ISFJ", mateWhy: "다정한 ISFJ가 ESTP의 빠른 걸음 뒤를 든든히 챙겨 줘요." },
+    ESFP: { nick: "연예인", name: "푸린", emoji: "🎤",
+      why: ["노래로 모두를 즐겁게 하는 푸린처럼 분위기 메이커예요.",
+            "사람들 앞에서 더 빛나고 지금 이 순간을 즐겨요.",
+            "웃음이 많아서 같이 있으면 신나요."],
+      mate: "ISTJ", mateWhy: "듬직한 ISTJ가 ESFP의 자유로운 에너지를 안정되게 받아 줘요." }
+  };
+
+  var ORDER = ["INTJ","INTP","ENTJ","ENTP","INFJ","INFP","ENFJ","ENFP",
+               "ISTJ","ISFJ","ESTJ","ESFJ","ISTP","ISFP","ESTP","ESFP"];
+
+  var pick = document.getElementById("pick");
+  var result = document.getElementById("result");
+  var grid = document.getElementById("grid");
+
+  // 16개 유형 버튼 만들기
+  ORDER.forEach(function (t) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "type-btn";
+    b.innerHTML = "<strong>" + t + "</strong><span>" + DATA[t].nick + "</span>";
+    b.addEventListener("click", function () { show(t); });
+    grid.appendChild(b);
+  });
+
+  function show(t) {
+    var d = DATA[t];
+    var m = DATA[d.mate];
+    document.getElementById("mytype").textContent = t + " · " + d.nick + "인 당신은";
+    document.getElementById("emoji").textContent = d.emoji;
+    document.getElementById("pname").textContent = d.name;
+    var ul = document.getElementById("why");
+    ul.innerHTML = "";
+    d.why.forEach(function (line) {
+      var li = document.createElement("li");
+      li.textContent = line;
+      ul.appendChild(li);
+    });
+    document.getElementById("matewhy").textContent = d.mateWhy;
+    var mb = document.getElementById("matebtn");
+    mb.textContent = d.mate + " " + m.nick + " " + m.emoji + " " + m.name;
+    mb.onclick = function () { show(d.mate); };
+
+    pick.hidden = true;
+    result.hidden = false;
+    window.scrollTo(0, 0);
+    document.getElementById("pname").focus({ preventScroll: true });
+  }
+
+  document.getElementById("reset").addEventListener("click", function () {
+    result.hidden = true;
+    pick.hidden = false;
+    window.scrollTo(0, 0);
+  });
+</script>
+</body>
+</html>
